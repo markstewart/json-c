@@ -32,6 +32,7 @@
 /tests/test_cast
 /tests/test_null
 /tests/test_printbuf
+/tests/testSort/test_sorted
 /Debug
 /Release
 *.lo

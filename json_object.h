@@ -43,6 +43,13 @@ extern "C" {
  */
 #define JSON_C_TO_STRING_PRETTY     (1<<1)
 
+/**
+ * A flag for the json_object_to_json_string_ext() and
+ * json_object_to_file_ext() functions which causes object keys
+ * to be sorted.
+ */
+#define JSON_C_TO_STRING_SORTED_KEYS     (1<<2)
+
 #undef FALSE
 #define FALSE ((json_bool)0)
 

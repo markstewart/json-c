@@ -45,7 +45,7 @@ const char *json_hex_chars = "0123456789abcdefABCDEF";
 
 static void json_object_generic_delete(struct json_object* jso);
 static struct json_object* json_object_new(enum json_type o_type);
-
+static int json_object_object_to_json_string_sorted_keys(struct json_object* jso, struct printbuf *pb, int level, int flags);
 
 /* ref count debugging */
 
@@ -222,11 +222,16 @@ static void indent(struct printbuf *pb, int level, int flags)
 
 /* json_object_object */
 
+
 static int json_object_object_to_json_string(struct json_object* jso,
 					     struct printbuf *pb,
 					     int level,
 						 int flags)
 {
+
+	if (flags & JSON_C_TO_STRING_SORTED_KEYS) 
+		return json_object_object_to_json_string_sorted_keys(jso, pb, level, flags);
+
 	int had_children = 0;
 	struct json_object_iter iter;
 
@@ -268,6 +273,79 @@ static int json_object_object_to_json_string(struct json_object* jso,
 		return sprintbuf(pb, /*{*/ "}");
 }
 
+static int key_sort(const void *a, const void*b) {
+	char **key1 = (char**) a; 
+	char **key2 = (char**) b; 
+
+	return strcmp(*key1, *key2);
+}
+
+static int json_object_object_to_json_string_sorted_keys(struct json_object* jso,
+					     struct printbuf *pb,
+					     int level,
+						 int flags)
+{
+	int had_children = 0;
+	struct json_object_iter iter;
+
+	sprintbuf(pb, "{" /*}*/);
+	if (flags & JSON_C_TO_STRING_PRETTY)
+		sprintbuf(pb, "\n");
+
+	struct array_list* keys;
+	keys = array_list_new(free);
+
+	json_object_object_foreachC(jso, iter)
+	{
+		array_list_add(keys, iter.key);
+	}
+
+	array_list_sort(keys, key_sort);
+
+	int i;
+	char* key;
+	json_object *val;
+	for (i=0; i<array_list_length(keys); i++) {
+		key = array_list_get_idx(keys, i);
+
+		val = json_object_object_get(jso, key);
+		if (i>0) {
+			sprintbuf(pb, ",");
+			if (flags & JSON_C_TO_STRING_PRETTY)
+				sprintbuf(pb, "\n");
+		}
+
+		if (flags & JSON_C_TO_STRING_SPACED)
+			sprintbuf(pb, " ");
+
+		indent(pb, level+1, flags);
+		sprintbuf(pb, "\"");
+		json_escape_str(pb, key, strlen(key));
+		if (flags & JSON_C_TO_STRING_SPACED)
+			sprintbuf(pb, "\": ");
+		else
+			sprintbuf(pb, "\":");
+		if(val == NULL)
+			sprintbuf(pb, "null");
+		else
+			val->_to_json_string(val, pb, level+1, flags);
+	}
+
+
+	if (flags & JSON_C_TO_STRING_PRETTY)
+	{
+		if (had_children)
+			sprintbuf(pb, "\n");
+		indent(pb,level,flags);
+	}
+
+	if (flags & JSON_C_TO_STRING_SPACED)
+		return sprintbuf(pb, /*{*/ " }");
+	else
+		return sprintbuf(pb, /*{*/ "}");
+}
+
+
 
 static void json_object_lh_entry_free(struct lh_entry *ent)
 {
@@ -287,6 +365,7 @@ struct json_object* json_object_new_object(void)
   if(!jso) return NULL;
   jso->_delete = &json_object_object_delete;
   jso->_to_json_string = &json_object_object_to_json_string;
+
   jso->o.c_object = lh_kchar_table_new(JSON_OBJECT_DEF_HASH_ENTRIES,
 					NULL, &json_object_lh_entry_free);
   return jso;
