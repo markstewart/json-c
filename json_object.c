@@ -331,6 +331,8 @@ static int json_object_object_to_json_string_sorted_keys(struct json_object* jso
 			val->_to_json_string(val, pb, level+1, flags);
 	}
 
+	free(keys->array);
+	free(keys);
 
 	if (flags & JSON_C_TO_STRING_PRETTY)
 	{
